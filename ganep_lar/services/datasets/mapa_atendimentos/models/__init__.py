@@ -1,0 +1,1 @@
+from .model_mapa_atendimento import ModelMapaAtendimento

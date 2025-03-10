@@ -1,0 +1,27 @@
+cert/
+firebase-credentials.json
+data/
+credentials.json
+*.json
+*.csv
+*.log
+*.txt
+*.tsv
+*.xlsx
+*.xls
+*.docx
+*.doc
+*.pdf
+*.pptx
+*.csv
+*.pem
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv

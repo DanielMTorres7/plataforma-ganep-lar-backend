@@ -1,0 +1,1 @@
+from .atendimento_completo import Iatendimento_completo
