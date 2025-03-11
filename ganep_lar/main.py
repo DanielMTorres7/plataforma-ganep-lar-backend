@@ -105,6 +105,13 @@ def dashsinfeccoes():
     return get_data(request)
 
 
+@app.route("/paineis/gestaorisco", methods=["POST"])
+@token_required
+def paineisgestaorisco():
+    from paineis.gestao_risco.main import get_data
+    return get_data(request)
+
+
 @app.route("/orcamentos", methods=["POST"])
 @token_required
 def orca():
