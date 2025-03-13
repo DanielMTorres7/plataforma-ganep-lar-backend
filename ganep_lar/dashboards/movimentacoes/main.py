@@ -90,18 +90,25 @@ def get_df_internacoes(data_inicio: datetime, data_fim: datetime, operadoras: Op
     df_motivos = [
         {
             'mes': mes.strftime('%b/%Y'),
-            'motivos': altas[
+            'motivos': dict(sorted(altas[
                 (altas['ALTA'].dt.normalize() >= mes) &
                 (altas['ALTA'].dt.normalize() < fim_mes)
-            ].groupby('MOTIVO_ALTA').size().to_dict()
+            ].groupby('MOTIVO_ALTA').size().to_dict().items(), key=lambda item: item[0]))
         }
         for mes in meses
         for fim_mes in [mes + pd.DateOffset(months=1) - pd.DateOffset(days=1)]
     ]
+
+
+    # Criar um dict com os motivos de alta e os respectivos valores
+    motivos = {}
+    for alta in altas['MOTIVO_ALTA'].unique():
+        if alta:
+            motivos[alta] = altas[altas['MOTIVO_ALTA'] == alta].to_dict(orient='records')
+    print(motivos)
     
 
-
-    return pd.DataFrame(df_atendimentos), n_atendimentos, n_entradas, n_altas, list_operadoras, pd.DataFrame(df_motivos)
+    return pd.DataFrame(df_atendimentos), n_atendimentos, n_entradas, n_altas, list_operadoras, pd.DataFrame(df_motivos), motivos
    
    
 def get_data(request: Request):
@@ -116,7 +123,7 @@ def get_data(request: Request):
     data_inicio = pd.to_datetime(inicio, format='%Y-%m-%d', errors='coerce')
     data_fim = pd.to_datetime(fim, format='%Y-%m-%d', errors='coerce')
 
-    df_atendimentos, n_atendimentos, n_entradas, n_altas, list_operadoras, df_motivos = get_df_internacoes(data_inicio, data_fim, operadoras)
+    df_atendimentos, n_atendimentos, n_entradas, n_altas, list_operadoras, df_motivos, motivos = get_df_internacoes(data_inicio, data_fim, operadoras)
     # Resposta final
     data = {
         'atendimentos': n_atendimentos,
@@ -125,5 +132,6 @@ def get_data(request: Request):
         'df_atendimentos': df_atendimentos.to_dict(orient='records'),
         'df_altas': df_motivos.to_dict(orient='records'),  # Adicione lógica para calcular, se necessário
         'operadoras': list_operadoras,  # Número total de LPPs no período
+        'motivos': motivos
     }
     return jsonify(data), 200

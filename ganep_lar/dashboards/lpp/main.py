@@ -28,36 +28,6 @@ def get_intercorrencias() -> pd.DataFrame:
         result = db.execute(text('SELECT "CLASSIFICACAO", "DATA_INICIO", "PACIENTE", "OPERADORA", "ATENDIMENTO" FROM intercorrencias'))
         df = pd.DataFrame(result.mappings().all())
         return df
-    
-
-# def get_lpps_mensal(data_inicio: datetime = inicio_ano, data_fim: datetime = hoje, operadoras: Optional[List[str]] = None) -> pd.DataFrame:
-#     """Calcula o número de LPPs por mês."""
-#     intercorrencias = get_intercorrencias()
-    
-#     # Filtra as intercorrências
-#     filtro = (
-#         (intercorrencias['CLASSIFICACAO'] == "LPP") &
-#         (intercorrencias['DATA_INICIO'] >= data_inicio) &
-#         (intercorrencias['DATA_INICIO'] <= data_fim)
-#     )
-#     if operadoras:
-#         filtro &= (intercorrencias['OPERADORA'].isin(operadoras))
-    
-#     intercorrencias_filtradas = intercorrencias[filtro]
-#     meses = pd.date_range(start=data_inicio, end=data_fim, freq='MS')
-    
-#     # Contagem de ScoreBraden por mês
-#     lpps_por_mes = [
-#         {'Mes': mes.strftime('%b/%Y'), 'LPPs': lpps}
-#         for mes in meses
-#         for fim_mes in [mes + pd.DateOffset(months=1) - pd.DateOffset(days=1)]
-#         for lpps in [len(intercorrencias_filtradas[
-#             (intercorrencias_filtradas['DATA_INICIO'] >= mes) &
-#             (intercorrencias_filtradas['DATA_INICIO'] < fim_mes)
-#         ])]
-#     ]
-    
-#     return pd.DataFrame(lpps_por_mes)
 
 def get_df(data_inicio: datetime, data_fim: datetime, operadoras: Optional[List[str]] = None) -> tuple[pd.DataFrame, int, pd.DataFrame, int, List[dict]]:
     """Calcula o número de pacientes com ScoreBraden por mês."""
@@ -89,7 +59,7 @@ def get_df(data_inicio: datetime, data_fim: datetime, operadoras: Optional[List[
 
     if operadoras:
         filtros_atendimentos &= atendimentos['OPERADORA'].isin(operadoras)
-        intercorrencias_filtradas = intercorrencias[intercorrencias['OPERADORA'].isin(operadoras)]
+        intercorrencias_filtradas = intercorrencias_filtradas[intercorrencias_filtradas['OPERADORA'].isin(operadoras)]
 
     # Filtrar valores unicos de prontuario sem ser atendimentos.drop_duplicates(subset='PRONTUARIO')
     atendimentos = atendimentos.loc[~atendimentos['PRONTUARIO'].duplicated(keep='last')]

@@ -4,6 +4,8 @@ from cachetools import TTLCache, cached
 from typing import List
 from services.database import *
 
+from flask import jsonify, Request
+
 
 CACHE_MAPA_ATENDIMENTOS = TTLCache(maxsize=100, ttl=3600)
 
@@ -14,15 +16,19 @@ def get_atendimentos():
         df = pd.DataFrame(result.mappings().all())
         return df
 
-def get_produtos_convenio():
+def get_produtos_convenio(request: Request):
+    """Endpoint para obter dados de LPPs e ScoreBraden."""
+    data = request.json
+    inicio = data.get("data_inicio")
+    fim = data.get("data_fim")
     # Definir o início e o fim do mês
-    mes_inicio = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    mes_fim = datetime.now()
+    mes_inicio = pd.to_datetime(inicio, format='%Y-%m-%d', errors='coerce')
+    mes_fim = pd.to_datetime(fim, format='%Y-%m-%d', errors='coerce')
 
     df_atendimentos = get_atendimentos()
 
     # Filtrar os atendimentos que estão dentro do mês atual 
-    filtro = (df_atendimentos['ENTRADA'] <= mes_fim) & ((df_atendimentos['ALTA'] >= mes_fim) | (df_atendimentos['ALTA'].isna()))
+    filtro = (df_atendimentos['ENTRADA'] <= mes_fim) & ((df_atendimentos['ALTA'] >= mes_fim) | (df_atendimentos['ALTA'].isna()) & (df_atendimentos['STATUS'] != "Reprovado"))
     df_filtrado = df_atendimentos[filtro]
     
     operadoras = []
@@ -31,21 +37,15 @@ def get_produtos_convenio():
     for (operadora, produto), group in df_filtrado.groupby(['OPERADORA', 'MODALIDADE']):
         diario = []
         total_pacientes = 0
-
-        # Preprocessamento: filtrar pacientes válidos para o produto
-        pacientes_validos = [
-            paciente for _, paciente in group.iterrows()
-            if paciente['STATUS'] != "Reprovado"
-        ]
         pacientes_anteriores = []
         # Para cada dia no intervalo
         for dia in dias:
             pacientes_dia = set([
                 paciente['PACIENTE']
-                for paciente in pacientes_validos
+                for paciente in group.to_dict(orient='records')
                 if (
                     paciente['ENTRADA'] <= dia and
-                    (pd.isna(paciente['ALTA']) or paciente['ALTA'] >= dia)
+                    (pd.isna(paciente['ALTA']) or paciente['ALTA'] > dia)
                 )
             ])
             total_pacientes += len(pacientes_dia)
@@ -62,8 +62,7 @@ def get_produtos_convenio():
                     atts["entradas"] = entradas
                 if len(saidas) > 0:
                     atts["saidas"] = saidas
-            
-
+                    
             pacientes_anteriores = pacientes_dia
             diario.append(atts)
 

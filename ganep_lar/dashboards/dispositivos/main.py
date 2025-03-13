@@ -23,8 +23,10 @@ inicio_ano = datetime(2024, 6, 1)
 @cached(cache_a)
 def retrieve_data() -> pd.DataFrame:
     with SessionLocal() as db:
-        result = db.execute(text('SELECT "ENTRADA", "STATUS", "TQT", "GTT", "SNE", "CVD", "CVA", "PICC", "OPERADORA", "ATENDIMENTO", "ALTA" FROM atendimentos_completo'))
+        result = db.execute(text('SELECT "PRONTUARIO", "PACIENTE", "ENTRADA", "STATUS", "TQT", "GTT", "SNE", "CVD", "CVA", "PICC", "OPERADORA", "ATENDIMENTO", "ALTA" FROM atendimentos_completo'))
         df = pd.DataFrame(result.mappings().all())
+        
+
         return df
 
 
@@ -60,10 +62,12 @@ def get_df_dispositivos(data_inicio: datetime, data_fim: datetime, operadoras: O
 
     n_atendimentos = len(atendimentos)
 
-    n_tqt = len(atendimentos[(atendimentos['TQT'])])
-    n_gtt_sne = len(atendimentos[(atendimentos['GTT'] | atendimentos['SNE'])])
-    n_cvd_cva = len(atendimentos[(atendimentos['CVD'] | atendimentos['CVA'])])
-    n_picc = len(atendimentos[(atendimentos['PICC'])])
+    n_tqt = atendimentos[(atendimentos['TQT'])].replace({pd.NaT: None}).to_dict(orient='records')
+    n_gtt = atendimentos[(atendimentos['GTT'])].replace({pd.NaT: None}).to_dict(orient='records')
+    n_sne = atendimentos[(atendimentos['SNE'])].replace({pd.NaT: None}).to_dict(orient='records')
+    n_cvd = atendimentos[(atendimentos['CVD'])].replace({pd.NaT: None}).to_dict(orient='records')
+    n_cva = atendimentos[(atendimentos['CVA'])].replace({pd.NaT: None}).to_dict(orient='records')
+    n_picc = atendimentos[(atendimentos['PICC'])].replace({pd.NaT: None}).to_dict(orient='records')
 
 
     # Gera o intervalo de meses
@@ -110,7 +114,7 @@ def get_df_dispositivos(data_inicio: datetime, data_fim: datetime, operadoras: O
     # Cria o DataFrame
     df_dispositivos = pd.DataFrame(dados_mensais)
 
-    return df_dispositivos, n_tqt, n_gtt_sne, n_cvd_cva, n_picc, n_atendimentos, list_operadoras
+    return df_dispositivos, n_tqt, n_gtt, n_sne, n_cvd, n_cva, n_picc, n_atendimentos, list_operadoras
     
 
 def get_data(request: Request):
@@ -125,13 +129,15 @@ def get_data(request: Request):
     data_inicio = pd.to_datetime(inicio, format='%Y-%m-%d', errors='coerce')
     data_fim = pd.to_datetime(fim, format='%Y-%m-%d', errors='coerce')
 
-    df_dispositivos, n_tqt, n_gtt_sne, n_cvd_cva, n_picc, n_atendimentos, list_operadoras = get_df_dispositivos(data_inicio, data_fim, operadoras)
+    df_dispositivos, n_tqt, n_gtt, n_sne, n_cvd, n_cva, n_picc, n_atendimentos, list_operadoras = get_df_dispositivos(data_inicio, data_fim, operadoras)
     # Resposta final
     data = {
         'atendimentos': n_atendimentos,
         'tqt': n_tqt,
-        'gtt_sne': n_gtt_sne,
-        'cvd_cva': n_cvd_cva,
+        'gtt': n_gtt,
+        'sne': n_sne,
+        'cvd': n_cvd,
+        'cva': n_cva,
         'picc': n_picc,  # Adicione lógica para calcular, se necessário
         'df_dispositivos': df_dispositivos.to_dict(orient='records'),  # Número total de LPPs no período
         'operadoras': list_operadoras,  # Número total de LPPs no período
