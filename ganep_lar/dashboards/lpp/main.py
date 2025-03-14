@@ -109,27 +109,51 @@ def get_df(data_inicio: datetime, data_fim: datetime, operadoras: Optional[List[
 
 
 
-def get_data(request: Request):
+def get_data(request):
     """Endpoint para obter dados de LPPs e ScoreBraden."""
-    data = request.json
-    inicio = data.get("data_inicio")
-    fim = data.get("data_fim")
-    if not inicio or not fim:
-        return jsonify({"error": "Os atributos 'data_inicio' e 'data_fim' são obrigatórios"}), 400
-    
-    operadoras = data.get("operadoras")
-    data_inicio = pd.to_datetime(inicio, format='%Y-%m-%d', errors='coerce')
-    data_fim = pd.to_datetime(fim, format='%Y-%m-%d', errors='coerce')
+    try:
+        # Obtém os dados da requisição
+        data = request.json
 
-    # Obtém os dados
-    score_braden_mensal, lpp_table, n_lpps, score_braden_total, list_operadoras = get_df(data_inicio, data_fim, operadoras)
-    
-    # Resposta final
-    data = {
-        'lpp_table': lpp_table,
-        'operadoras': list_operadoras,
-        'score_braden_mensal': score_braden_mensal.to_dict(orient='records'),
-        'pacientes_classificados_score_braden': score_braden_total,
-        'numero_lpps': n_lpps,  # Número total de LPPs no período
-    }
-    return jsonify(data), 200
+        # Verifica se os dados foram fornecidos
+        if not data:
+            return jsonify({"error": "Dados não fornecidos no corpo da requisição"}), 400
+
+        # Valida os campos obrigatórios
+        inicio = data.get("data_inicio")
+        fim = data.get("data_fim")
+        operadoras = data.get("operadoras")
+
+        if not inicio or not fim:
+            return jsonify({"error": "Os atributos 'data_inicio' e 'data_fim' são obrigatórios"}), 400
+
+        # Converte as datas para o formato datetime
+        data_inicio = pd.to_datetime(inicio, format='%Y-%m-%d', errors='coerce')
+        data_fim = pd.to_datetime(fim, format='%Y-%m-%d', errors='coerce')
+
+        # Verifica se as datas foram convertidas corretamente
+        if pd.isna(data_inicio) or pd.isna(data_fim):
+            return jsonify({"error": "Formato de data inválido. Use o formato 'YYYY-MM-DD'"}), 400
+
+        # Verifica se a data de início é anterior à data de fim
+        if data_inicio > data_fim:
+            return jsonify({"error": "A data de início deve ser anterior à data de fim"}), 400
+
+        # Obtém os dados
+        score_braden_mensal, lpp_table, n_lpps, score_braden_total, list_operadoras = get_df(data_inicio, data_fim, operadoras)
+
+        # Resposta final
+        response_data = {
+            'lpp_table': lpp_table,
+            'operadoras': list_operadoras,
+            'score_braden_mensal': score_braden_mensal.to_dict(orient='records'),
+            'pacientes_classificados_score_braden': score_braden_total,
+            'numero_lpps': n_lpps,  # Número total de LPPs no período
+        }
+
+        return jsonify(response_data), 200
+
+    except Exception as e:
+        # Log de erro para depuração
+        print(f"Erro em get_data: {str(e)}")
+        return jsonify({"error": "Erro interno no servidor"}), 500

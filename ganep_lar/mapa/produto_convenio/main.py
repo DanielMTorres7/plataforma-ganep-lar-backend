@@ -28,7 +28,16 @@ def get_produtos_convenio(request: Request):
     df_atendimentos = get_atendimentos()
 
     # Filtrar os atendimentos que estão dentro do mês atual 
-    filtro = (df_atendimentos['ENTRADA'] <= mes_fim) & ((df_atendimentos['ALTA'] >= mes_fim) | (df_atendimentos['ALTA'].isna()) & (df_atendimentos['STATUS'] != "Reprovado"))
+    filtro = (
+    (
+        df_atendimentos['ENTRADA'] <= mes_fim    
+    ) & 
+    (
+        (df_atendimentos['ALTA'].isna()) | 
+        (df_atendimentos['ALTA'] >= mes_fim)
+    ) & 
+        (df_atendimentos['STATUS'] != "Reprovado")
+    )
     df_filtrado = df_atendimentos[filtro]
     
     operadoras = []
@@ -37,7 +46,7 @@ def get_produtos_convenio(request: Request):
     for (operadora, produto), group in df_filtrado.groupby(['OPERADORA', 'MODALIDADE']):
         diario = []
         total_pacientes = 0
-        pacientes_anteriores = []
+        pacientes_anteriores = set()  # Usar um conjunto para facilitar a comparação
         # Para cada dia no intervalo
         for dia in dias:
             pacientes_dia = set([
@@ -45,7 +54,7 @@ def get_produtos_convenio(request: Request):
                 for paciente in group.to_dict(orient='records')
                 if (
                     paciente['ENTRADA'] <= dia and
-                    (pd.isna(paciente['ALTA']) or paciente['ALTA'] > dia)
+                    (pd.isna(paciente['ALTA']) or paciente['ALTA'] >= dia)
                 )
             ])
             total_pacientes += len(pacientes_dia)
@@ -54,7 +63,7 @@ def get_produtos_convenio(request: Request):
                 "total": len(pacientes_dia)
             }
             
-            # Entradas e saidas com relação ao dia anterior, comparar a lista de pacientes
+            # Entradas e saídas com relação ao dia anterior, comparar a lista de pacientes
             if len(diario) > 0:
                 entradas = list(pacientes_dia - pacientes_anteriores)
                 saidas = list(pacientes_anteriores - pacientes_dia)
