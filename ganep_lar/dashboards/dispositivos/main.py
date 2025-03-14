@@ -53,7 +53,6 @@ def get_df_dispositivos(data_inicio: datetime, data_fim: datetime, operadoras: O
 
     # filtrar valores unicos de ATENDIMENTO
     atendimentos = atendimentos[filters].drop_duplicates(subset='ATENDIMENTO')
-    atendimentos['ALTA'] = atendimentos['ALTA'].dt.normalize()
     list_operadoras = [{'label': f'{op} : {atendimentos[atendimentos["OPERADORA"] == op].shape[0]}', 'value': op} for op in atendimentos['OPERADORA'].unique()]
     # Ordena as operadoras por quantidade de atendimentos (extraindo o número do label)
     list_operadoras = sorted(list_operadoras, key=lambda x: int(x['label'].split(' : ')[1]), reverse=True)
