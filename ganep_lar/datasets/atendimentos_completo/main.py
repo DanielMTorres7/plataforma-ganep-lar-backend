@@ -8,7 +8,7 @@ CACHE_MAPA_ATENDIMENTOS = TTLCache(maxsize=100, ttl=3600)
 @cached(CACHE_MAPA_ATENDIMENTOS)
 def get_atendimentos():
     with SessionLocal() as db:
-        result = db.execute(text('SELECT * FROM mapa_atendimentos'))
+        result = db.execute(text('SELECT * FROM atendimentos_completo'))
         df = pd.DataFrame(result.mappings().all())
 
         # Tratar automaticamente colunas de data (NaT) e colunas numéricas (NaN)

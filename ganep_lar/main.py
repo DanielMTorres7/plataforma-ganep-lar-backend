@@ -35,7 +35,9 @@ roles['admin'] = [
     'produtosconvenio',
     'produtosconvenio:read',
     'detalhesmod',
-    'detalhesmod:read'
+    'detalhesmod:read',
+    'datasets-atendimento_completo',
+    'datasets-atendimento_completo:read',
 ]
 roles['moderator'] = [].extend(roles['admin'])
 
@@ -179,7 +181,7 @@ def detalhes_mod():
 
 
 @app.route("/datasets/atendimento_completo", methods=["POST"])
-@token_required(required_permissions=["detalhesmod", "detalhesmod:read"])
+@token_required(required_permissions=["datasets-atendimento_completo", "datasets-atendimento_completo:read"])
 def datasets_atendimento_completo():
     from datasets.atendimentos_completo.main import get_data
     return get_data(request)
