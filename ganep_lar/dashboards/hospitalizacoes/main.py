@@ -43,7 +43,7 @@ def get_last_hosp_table_events(data_inicio: datetime, data_fim: datetime, operad
             'operadora': atend['OPERADORA']
         }
         for _, atend in atendimentos.iterrows()
-    ][:12]).sort_values(by='data', ascending=False)
+    ]).sort_values(by='data', ascending=False)
     return df
 
 import pandas as pd

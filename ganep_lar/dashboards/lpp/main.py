@@ -72,7 +72,7 @@ def get_df(data_inicio: datetime, data_fim: datetime, operadoras: Optional[List[
 
     # Table de LPPs
     df_lpp = intercorrencias_filtradas[['PACIENTE', 'DATA_INICIO', 'OPERADORA', 'ATENDIMENTO']]
-    lpp_table = df_lpp[:12].to_dict(orient='records')
+    lpp_table = df_lpp.to_dict(orient='records')
 
     # Lista de meses no intervalo
     meses = pd.date_range(start=data_inicio, end=data_fim, freq='MS')
