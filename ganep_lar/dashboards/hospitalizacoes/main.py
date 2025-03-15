@@ -2,10 +2,10 @@ import pandas as pd
 from datetime import datetime
 from cachetools import cached, TTLCache
 from sqlalchemy import text
-from services.database import SessionLocal
+
 from typing import List, Optional
 from flask import jsonify, Request
-
+from services.mongo import db
 # Configuração do cache
 cache_a = TTLCache(maxsize=100, ttl=3600)
 
@@ -14,10 +14,15 @@ inicio_ano = datetime(2024, 6, 1)
 
 @cached(cache_a)
 def retrieve_data() -> pd.DataFrame:
-    with SessionLocal() as db:
-        result = db.execute(text('SELECT "ENTRADA", "STATUS", "ALTA", "MOTIVO_ALTA", "OPERADORA", "PACIENTE", "ATENDIMENTO", "PRONTUARIO" FROM atendimentos_completo'))
-        df = pd.DataFrame(result.mappings().all())
-        return df
+    """Busca os dados do MongoDB e retorna um DataFrame."""
+    colecao_atendimentos = db["atendimentos_completo"]
+    # Consulta todos os documentos na coleção
+    dados = list(colecao_atendimentos.find())
+    
+    # Converte a lista de dicionários para um DataFrame
+    df = pd.DataFrame(dados)
+    
+    return df
 
 
 def get_last_hosp_table_events(data_inicio: datetime, data_fim: datetime, operadoras) -> pd.DataFrame:

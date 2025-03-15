@@ -1,23 +1,29 @@
 import pandas as pd
+from datetime import datetime
 
-def convert_to_date(value:str, format='%d/%m/%Y %H:%M', errors='coerce') -> pd.Timestamp:
-    if type(value) == pd.Timestamp:
+def convert_to_date(value: str, format='%d/%m/%Y %H:%M', errors='coerce') -> datetime:
+    if isinstance(value, datetime):
         return value
-    # Primeiro, convertemos a coluna para datetime com diferentes formatos
-    converted_value = pd.to_datetime(value, format=format, errors=errors)
-    converted_value = pd.to_datetime(converted_value, format='%d/%m/%Y', errors=errors)
-    converted_value = pd.to_datetime(converted_value, format='%Y-%m-%d', errors=errors)
-    converted_value = pd.to_datetime(converted_value, format='%Y-%m-%d %H:%M:%S', errors=errors)
-    converted_value = pd.to_datetime(converted_value, format='%d/%m/%Y %H:%M:%S', errors=errors)
-    return converted_value
+    try:
+        return datetime.strptime(value, format)
+    except (ValueError, TypeError):
+        if errors == 'coerce':
+            return None
+        else:
+            raise
 
 def convert_to_int(value:str, errors='coerce') -> int:
     if type(value) == int:
         return value
     # Converte a coluna para inteiro
     converted_value = str(value).replace('.', '')
-    converted_value = pd.to_numeric(value, errors=errors)
-    return converted_value
+    try:
+        return int(converted_value)
+    except ValueError:
+        if errors == 'coerce':
+            return None
+        else:
+            raise
 
 def convert_to_str(value:str) -> str:
     if pd.isna(value) or value is None:

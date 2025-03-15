@@ -2,7 +2,7 @@ import pandas as pd
 from datetime import datetime
 from cachetools import cached, TTLCache
 from sqlalchemy import text
-from services.database import SessionLocal
+from services.mongo import db
 from typing import List, Optional
 from flask import jsonify, Request
 
@@ -12,23 +12,19 @@ cache_a = TTLCache(maxsize=100, ttl=3600)
 hoje = datetime.now()
 inicio_ano = datetime(2024, 6, 1)
 
-# TQT
-# GTT
-# SNE
-# CVD
-# CVA
-# PICC
-
 
 @cached(cache_a)
 def retrieve_data() -> pd.DataFrame:
-    with SessionLocal() as db:
-        result = db.execute(text('SELECT "PRONTUARIO", "PACIENTE", "ENTRADA", "STATUS", "TQT", "GTT", "SNE", "CVD", "CVA", "PICC", "OPERADORA", "ATENDIMENTO", "ALTA" FROM atendimentos_completo'))
-        df = pd.DataFrame(result.mappings().all())
-        
-
-        return df
-
+    colecao_atendimentos = db["atendimentos_completo"]
+    # Consulta todos os documentos na coleção
+    dados = list(colecao_atendimentos.find())
+    
+    # Converte a lista de dicionários para um DataFrame
+    df = pd.DataFrame(dados)
+    df = df[["PRONTUARIO", "PACIENTE", "ENTRADA", "STATUS", "TQT", "GTT", "SNE", "CVD", "CVA", "PICC", "OPERADORA", "ATENDIMENTO", "ALTA"]]
+    
+    return df
+    
 
 def get_df_dispositivos(data_inicio: datetime, data_fim: datetime, operadoras: Optional[List[str]] = None) -> pd.DataFrame:
     """Obtém os dados de internações de forma eficiente."""

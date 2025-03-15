@@ -2,9 +2,10 @@ import pandas as pd
 from datetime import datetime
 from cachetools import cached, TTLCache
 from sqlalchemy import text
-from services.database import SessionLocal
+
 from typing import List, Optional
 from flask import jsonify, Request
+from services.mongo import db
 
 # Configuração do cache
 cache_a = TTLCache(maxsize=100, ttl=3600)
@@ -15,19 +16,29 @@ inicio_ano = datetime(2024, 6, 1)
 
 @cached(cache_a)
 def get_atendimentos() -> pd.DataFrame:
-    """Obtém os dados de atendimentos_completo e retorna um DataFrame."""
-    with SessionLocal() as db:
-        result = db.execute(text('SELECT "PRONTUARIO", "SCORE_BRADEN", "ENTRADA", "STATUS", "OPERADORA", "ALTA" FROM atendimentos_completo'))
-        df = pd.DataFrame(result.mappings().all())
-        return df
+    """Busca os dados do MongoDB e retorna um DataFrame."""
+    colecao_atendimentos = db["atendimentos_completo"]
+    # Consulta todos os documentos na coleção
+    dados = list(colecao_atendimentos.find())
+    
+    # Converte a lista de dicionários para um DataFrame
+    # pega as colunas ["PRONTUARIO", "SCORE_BRADEN", "ENTRADA", "STATUS", "OPERADORA", "ALTA"]
+    df = pd.DataFrame(dados)
+    df = df[["PRONTUARIO", "SCORE_BRADEN", "ENTRADA", "STATUS", "OPERADORA", "ALTA"]]
+    
+    return df
 
 @cached(cache_i)
 def get_intercorrencias() -> pd.DataFrame:
     """Obtém os dados de intercorrencias e retorna um DataFrame."""
-    with SessionLocal() as db:
-        result = db.execute(text('SELECT "CLASSIFICACAO", "DATA_INICIO", "PACIENTE", "OPERADORA", "ATENDIMENTO" FROM intercorrencias'))
-        df = pd.DataFrame(result.mappings().all())
-        return df
+    # SELECT "CLASSIFICACAO", "DATA_INICIO", "PACIENTE", "OPERADORA", "ATENDIMENTO" FROM intercorrencias
+    colecao_intercorrencias = db["intercorrencias"]
+    dados = list(colecao_intercorrencias.find())
+
+    df = pd.DataFrame(dados)
+    df = df[["CLASSIFICACAO", "DATA_INICIO", "PACIENTE", "OPERADORA", "ATENDIMENTO"]]
+
+    return df
 
 def get_df(data_inicio: datetime, data_fim: datetime, operadoras: Optional[List[str]] = None) -> tuple[pd.DataFrame, int, pd.DataFrame, int, List[dict]]:
     """Calcula o número de pacientes com ScoreBraden por mês."""

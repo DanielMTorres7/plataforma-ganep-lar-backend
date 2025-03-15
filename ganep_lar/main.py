@@ -3,9 +3,9 @@ import locale
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from functools import wraps
-from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity
+from flask_jwt_extended import JWTManager
 from services.data_base.models import db, User
-from routes import auth_bp
+from routes import auth_bp, token_required
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -23,61 +23,6 @@ with app.app_context():
     db.create_all()
 
 # Definição de roles e permissões
-roles = {
-    'admin': [
-        'dashboards', 
-        'dashboards-lpp', 
-        'dashboards-lpp:read',
-        'dashboards-hospitalizacoes',
-        'dashboards-hospitalizacoes:read',
-        'dashboards-dispositivos',
-        'dashboards-dispositivos:read',
-        'dashboards-movimentacoes',
-        'dashboards-movimentacoes:read',
-        'dashboards-infeccoes',
-        'dashboards-infeccoes:read',
-        'paineis',
-        'paineis-gestaorisco',
-        'paineis-gestaorisco:read',
-        'orcamentos',
-        'orcamentos:read',
-        'produtosconvenio',
-        'produtosconvenio:read',
-        'detalhesmod',
-        'detalhesmod:read',
-        'datasets-atendimento_completo',
-        'datasets-atendimento_completo:read',
-    ],
-    'moderator': []  # Moderador herda as permissões do admin
-}
-roles['moderator'].extend(roles['admin'])
-
-# Decorator para verificar permissões
-def token_required(required_permissions=None):
-    def decorator(f):
-        @wraps(f)
-        @jwt_required()
-        def decorated(*args, **kwargs):
-            current_user = get_jwt_identity()
-            user: User = User.query.get(current_user)
-
-            if not user:
-                return jsonify({'message': 'Usuário não encontrado!'}), 403
-
-            # Verifica se o usuário tem a role necessária
-            if user.role not in roles:
-                return jsonify({'message': 'Unauthorized: Role required!'}), 403
-
-            # Verifica as permissões
-            if required_permissions:
-                user_permissions = roles[user.role]
-                for permission in required_permissions:
-                    if permission not in user_permissions:
-                        return jsonify({'message': 'Unauthorized: Permission required!'}), 403
-
-            return f(*args, **kwargs)
-        return decorated
-    return decorator
 
 # Rotas protegidas
 @app.route("/dashboards/lpp", methods=["POST"])
