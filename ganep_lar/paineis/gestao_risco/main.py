@@ -5,7 +5,7 @@ from sqlalchemy import text
 from services.database import SessionLocal
 from typing import List, Optional
 from flask import jsonify, Request
-
+from services.mongo import db
 
 hoje = datetime.now()
 inicio_ano = datetime(2024, 6, 1)
@@ -14,10 +14,17 @@ inicio_ano = datetime(2024, 6, 1)
 cache_atendimentos = TTLCache(maxsize=100, ttl=3600)
 @cached(cache_atendimentos)
 def retrieve_data() -> pd.DataFrame:
-    with SessionLocal() as db:
-        result = db.execute(text('SELECT "ENTRADA", "PACIENTE", "OPERADORA", "ATENDIMENTO", "PRONTUARIO", "STATUS", "RISCO_NUTRI", "GRUPO", "GTT", "SNE", "DIABETES" FROM atendimentos_completo'))
-        df = pd.DataFrame(result.mappings().all())
-        return df
+    """Busca os dados do MongoDB e retorna um DataFrame."""
+    colecao_atendimentos = db["atendimentos_completo"]
+    # Consulta todos os documentos na coleção
+    dados = list(colecao_atendimentos.find())
+    
+    # Converte a lista de dicionários para um DataFrame
+    df = pd.DataFrame(dados)
+    df = df[["ENTRADA", "PACIENTE", "OPERADORA", "ATENDIMENTO", "PRONTUARIO", "STATUS", "RISCO_NUTRI", "GRUPO", "GTT", "SNE", "DIABETES"]]
+    
+    return df
+    
     
 def get_values():
     atendimentos = retrieve_data()

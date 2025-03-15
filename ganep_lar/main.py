@@ -85,6 +85,12 @@ def datasets_atendimento_completo():
     from datasets.atendimentos_completo.main import get_data
     return get_data(request)
 
+@app.route("/prontuario", methods=["POST"])
+@token_required()
+def pront():
+    from aj import get_atend
+    return get_atend(request.json.get("prontuario"))
+
 # Inicialização do servidor
 if __name__ == "__main__":
     locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')

@@ -54,6 +54,8 @@ def get_df(data_inicio: datetime, data_fim: datetime, operadoras: Optional[List[
         )
     )
     atendimentos = atendimentos[filtros_atendimentos]
+    atendimentos = atendimentos.drop_duplicates(subset='PRONTUARIO')
+    # atendimentos = pd.DataFrame(list({atend['PRONTUARIO']: atend for _, atend in atendimentos.iterrows()}.values()))
 
     filtros_ccids = (
         (ccids['DATA_OCORRENCIA'] >= data_inicio) &

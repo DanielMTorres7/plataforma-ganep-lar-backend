@@ -82,6 +82,8 @@ def insert_mongo_data(table_name, df: pd.DataFrame):
     for col in df.columns:
         if pd.api.types.is_datetime64_any_dtype(df[col]):
             df[col] = df[col].astype(object).where(df[col].notnull(), None)
+        if pd.api.types.is_float_dtype(df[col]):
+            df[col] = df[col].astype(object).where(df[col].notnull(), None)
 
 
     # Converter o DataFrame para uma lista de dicionários

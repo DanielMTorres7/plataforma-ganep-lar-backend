@@ -2,7 +2,7 @@ import pandas as pd
 from datetime import datetime
 from cachetools import TTLCache, cached
 from typing import List
-from services.database import *
+from services.mongo import db
 
 from flask import jsonify, Request
 
@@ -11,10 +11,16 @@ CACHE_MAPA_ATENDIMENTOS = TTLCache(maxsize=100, ttl=3600)
 
 @cached(CACHE_MAPA_ATENDIMENTOS)
 def get_atendimentos():
-    with SessionLocal() as db:
-        result = db.execute(text('SELECT "ENTRADA", "ALTA", "OPERADORA", "MODALIDADE", "STATUS", "PACIENTE" FROM mapa_atendimentos'))
-        df = pd.DataFrame(result.mappings().all())
-        return df
+    """Busca os dados do MongoDB e retorna um DataFrame."""
+    colecao_atendimentos = db["mapa_atendimentos"]
+    # Consulta todos os documentos na coleção
+    dados = list(colecao_atendimentos.find())
+    
+    # Converte a lista de dicionários para um DataFrame
+    df = pd.DataFrame(dados)
+    df = df[["ENTRADA", "ALTA", "OPERADORA", "MODALIDADE", "STATUS", "PACIENTE"]]
+    
+    return df
 
 def get_produtos_convenio(request: Request):
     """Endpoint para obter dados de LPPs e ScoreBraden."""
@@ -33,7 +39,7 @@ def get_produtos_convenio(request: Request):
         df_atendimentos['ENTRADA'] <= mes_fim    
     ) & 
     (
-        (df_atendimentos['ALTA'].isna()) | 
+        (pd.isna(df_atendimentos['ALTA'])) | 
         (df_atendimentos['ALTA'] >= mes_fim)
     ) & 
         (df_atendimentos['STATUS'] != "Reprovado")
