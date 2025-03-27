@@ -91,7 +91,7 @@ class DfInfos:
     
     def __dict__(self):
         return {
-            'title': self.title,
+            'title': self.title[:3] + '**(Dados Protegido)' if self.title != 'Geral' else self.title,
             'orcado': self.orcado,
             'custo': self.custo,
             'custo_nao_orcado': self.custo_nao_orcado,

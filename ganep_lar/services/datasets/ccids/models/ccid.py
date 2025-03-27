@@ -2,6 +2,7 @@ from utils.convert_value_utils import *
 
 class CCID:
     def __init__(self, **kwargs) -> None:
+        self.atendimento = convert_to_int(kwargs.get('ATENDIMENTO'))
         self.competencia = convert_to_date(kwargs.get('COMPETENCIA'),format='%d/%m/%Y')
         self.cod_beneficiario = convert_to_str(kwargs.get('COD_BENEFICIARIO'))
         self.nome_paciente = convert_to_str(kwargs.get('NOME_PACIENTE'))
@@ -27,6 +28,7 @@ class CCID:
         
     def __dict__(self):
         return {
+            'ATENDIMENTO': self.atendimento,
             'COMPETENCIA': self.competencia,
             'COD_BENEFICIARIO': self.cod_beneficiario,
             'NOME_PACIENTE': self.nome_paciente,

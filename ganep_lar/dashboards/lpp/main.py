@@ -1,126 +1,100 @@
+import io
 import pandas as pd
-from datetime import datetime
-from cachetools import cached, TTLCache
-from sqlalchemy import text
 
+from datetime import datetime
 from typing import List, Optional
-from flask import jsonify, Request
+from cachetools import TTLCache, cached
+from flask import jsonify, send_file, Request, Response
+from openpyxl import Workbook
+from openpyxl.styles import Alignment
 from services.mongo import db
 
 # Configuração do cache
 cache_a = TTLCache(maxsize=100, ttl=3600)
-cache_i = TTLCache(maxsize=100, ttl=3600)
-
-hoje = datetime.now()
-inicio_ano = datetime(2024, 6, 1)
-
 @cached(cache_a)
 def get_atendimentos() -> pd.DataFrame:
-    """Busca os dados do MongoDB e retorna um DataFrame."""
-    colecao_atendimentos = db["atendimentos_completo"]
+    """Obtém os dados de atendimentos_completo e retorna um DataFrame."""
+    colecao_atendimentos = db["prontuarios"]
     # Consulta todos os documentos na coleção
     dados = list(colecao_atendimentos.find())
     
-    # Converte a lista de dicionários para um DataFrame
-    # pega as colunas ["PRONTUARIO", "SCORE_BRADEN", "ENTRADA", "STATUS", "OPERADORA", "ALTA"]
-    df = pd.DataFrame(dados)
-    df = df[["PRONTUARIO", "SCORE_BRADEN", "ENTRADA", "STATUS", "OPERADORA", "ALTA"]]
-    
-    return df
-
-@cached(cache_i)
-def get_intercorrencias() -> pd.DataFrame:
-    """Obtém os dados de intercorrencias e retorna um DataFrame."""
-    # SELECT "CLASSIFICACAO", "DATA_INICIO", "PACIENTE", "OPERADORA", "ATENDIMENTO" FROM intercorrencias
-    colecao_intercorrencias = db["intercorrencias"]
-    dados = list(colecao_intercorrencias.find())
-
-    df = pd.DataFrame(dados)
-    df = df[["CLASSIFICACAO", "DATA_INICIO", "PACIENTE", "OPERADORA", "ATENDIMENTO"]]
-
-    return df
+    return dados
 
 def get_df(data_inicio: datetime, data_fim: datetime, operadoras: Optional[List[str]] = None) -> tuple[pd.DataFrame, int, pd.DataFrame, int, List[dict]]:
     """Calcula o número de pacientes com ScoreBraden por mês."""
-    atendimentos = get_atendimentos()
-    intercorrencias = get_intercorrencias()
+    prontuarios = get_atendimentos()
 
-    # Filtra os atendimentos
-    filtros_atendimentos = (
-        (atendimentos['SCORE_BRADEN'].notna()) &
-        (atendimentos['ENTRADA'] <= data_fim) &
-        (
-            ((atendimentos['STATUS'] == "Alta") & (atendimentos['ALTA'] >= data_inicio)) |
-            (atendimentos['STATUS'] == "Em atendimento")
-        )
-    )
+    lpps = []
+    scorebradens = []
+    for prontuario in prontuarios:
+        for _, atendimento in prontuario['ATENDIMENTOS'].items():
+            if atendimento['STATUS'] not in ['Alta', 'Em atendimento']:
+                continue
+            if atendimento['ENTRADA'] > (data_fim) or (atendimento['STATUS'] == 'Alta' and atendimento['ALTA'] < data_inicio):
+                continue
+            # if str(prontuario['PRONTUARIO']) != str(2280):
+            #     continue
+            # print("asdasd",atendimento['ENTRADA'], atendimento['ALTA'])
 
-    # Filtra as intercorrências
-    filtros_intercorrencias = (
-        (intercorrencias['CLASSIFICACAO'] == "LPP") &
-        (intercorrencias['DATA_INICIO'] >= data_inicio) &
-        (intercorrencias['DATA_INICIO'] <= data_fim)
-    )
-    intercorrencias_filtradas = intercorrencias[filtros_intercorrencias]
+            if atendimento['SCORE_BRADEN']:
+                scorebradens.append({
+                    'PACIENTE': prontuario['PACIENTE'],
+                    'PRONTUARIO': prontuario['PRONTUARIO'],
+                    'ENTRADA': atendimento['ENTRADA'],
+                    'STATUS': atendimento['STATUS'],
+                    'ALTA': atendimento['ALTA'],
+                    'OPERADORA': atendimento['OPERADORA']
+                })
 
-    # Lista de operadoras
-    # Ordena as operadoras por quantidade de atendimentos (extraindo o número do label)
-    list_operadoras = [{'label': f'{op} : {intercorrencias_filtradas[intercorrencias_filtradas["OPERADORA"] == op].shape[0]}', 'value': op} for op in intercorrencias_filtradas['OPERADORA'].unique()]
-    list_operadoras = sorted(list_operadoras, key=lambda x: int(x['label'].split(' : ')[1]), reverse=True)
+            for _, inter in atendimento['INTERCORRENCIAS'].items():
+                if inter['CLASSIFICACAO'] == 'LPP' and inter['DATA_INICIO'] >= data_inicio and inter['DATA_INICIO'] <= data_fim:
+                    lpps.append({
+                        'PACIENTE': prontuario['PACIENTE'],
+                        'PRONTUARIO': prontuario['PRONTUARIO'],
+                        'DATA_INICIO': inter['DATA_INICIO'],
+                        'OPERADORA': atendimento['OPERADORA']
+                    })
 
+    lpp_table = pd.DataFrame(lpps).sort_values(by='DATA_INICIO') if lpps else pd.DataFrame()
+    list_operadoras = [{'label': f'{op} : {lpp_table[lpp_table["OPERADORA"] == op].shape[0]}', 'value': op} for op in lpp_table['OPERADORA'].unique()] if not lpp_table.empty else []
+    scorebradens = pd.DataFrame(scorebradens)
     if operadoras:
-        filtros_atendimentos &= atendimentos['OPERADORA'].isin(operadoras)
-        intercorrencias_filtradas = intercorrencias_filtradas[intercorrencias_filtradas['OPERADORA'].isin(operadoras)]
-
-    # Filtrar valores unicos de prontuario sem ser atendimentos.drop_duplicates(subset='PRONTUARIO')
-    atendimentos = atendimentos.loc[~atendimentos['PRONTUARIO'].duplicated(keep='last')]
-    atendimentos_filtrados = atendimentos[filtros_atendimentos]
-
-    # Número total de LPPs e atendimentos
-    n_lpps = len(intercorrencias_filtradas)
-    n_atendimentos = len(atendimentos_filtrados)
-
-
-    # Table de LPPs
-    df_lpp = intercorrencias_filtradas[['PACIENTE', 'DATA_INICIO', 'OPERADORA', 'ATENDIMENTO']]
-    lpp_table = df_lpp.to_dict(orient='records')
-
-    # Lista de meses no intervalo
-    meses = pd.date_range(start=data_inicio, end=data_fim, freq='MS')
+        scorebradens = scorebradens[scorebradens['OPERADORA'].isin(operadoras)]
+        lpp_table = lpp_table[lpp_table['OPERADORA'].isin(operadoras)] if not lpp_table.empty else lpp_table
     
-    # Contagem de ScoreBraden por mês
-    score_braden_por_mes = [
-        {
-            'mes': mes.strftime('%b/%Y'), 
-            'score_braden': count,
-            'lpps': lpps,
-            'percentual': round(lpps / count * 100, 2) if lpps > 0 else 0
-        }
-        for mes in meses
-        for mes_inicio in [mes]
-        for mes_fim in [mes + pd.DateOffset(months=1) - pd.DateOffset(days=1)]
-        for count in [len(atendimentos_filtrados[
-            (atendimentos_filtrados['ENTRADA'] <= mes_fim) &
-            (
-                ((atendimentos_filtrados['STATUS'] == "Alta") & (atendimentos_filtrados['ALTA'] >= mes_inicio)) |
-                (atendimentos_filtrados['STATUS'] == "Em atendimento")
-            )
-        ])]
-        for lpps in [
-            len(intercorrencias_filtradas[
-            (intercorrencias_filtradas['DATA_INICIO'] >= mes_inicio) &
-            (intercorrencias_filtradas['DATA_INICIO'] <= mes_fim)
-            ]
-        ) if len(intercorrencias_filtradas) > 0 else 1]
-    ]
-    
-    df = pd.DataFrame(score_braden_por_mes)
-    return df, lpp_table, n_lpps, n_atendimentos, list_operadoras
+    n_lpps = lpp_table.shape[0]  # Número total de LPPs no período
+    n_atendimentos = scorebradens.shape[0]
 
+    # Contar mensalmente os pacientes com ScoreBraden no período de interesse
+    score_mensal = []
+    for mes in pd.date_range(data_inicio, data_fim, freq='MS'):
+        inicio = mes
+        fim = (mes + pd.DateOffset(months=1))
+        # print(inicio, fim, scorebradens['ENTRADA'])
+        scorebradens_mes = len(scorebradens[
+            (scorebradens['ENTRADA'] < fim) &
+            ((scorebradens['STATUS'].isin(['Alta', 'Em atendimento']))) &
+            ((pd.isna(scorebradens['ALTA'])) | (scorebradens['ALTA'] >= inicio)) 
+        ]['PRONTUARIO'].drop_duplicates())
+        
+        # pd.DataFrame(scorebradens_mes).to_csv('scorebradens_' + mes.strftime('%m') + '.csv')
+        # scorebradens_mes = scorebradens_mes.shape[0]
+        lpps_mes = 0 if lpp_table.empty else lpp_table[lpp_table['DATA_INICIO'].dt.to_period('M') == mes.to_period('M')].shape[0]
+        percentual = round(lpps_mes / scorebradens_mes * 100, 2) if lpps_mes > 0 else 0
+        score_mensal.append(
+            {
+                'mes': mes,
+                'score_braden': scorebradens_mes,
+                'lpps': lpps_mes,
+                'percentual': percentual
+            }
+        )
 
+    score_mensal = pd.DataFrame(score_mensal).sort_values(by='mes')
+    score_mensal['mes'] = score_mensal['mes'].dt.strftime('%m/%Y')
+    return score_mensal, lpp_table, n_lpps, n_atendimentos, list_operadoras
 
-
-def get_data(request):
+def get_data(request: Request) -> Response:
     """Endpoint para obter dados de LPPs e ScoreBraden."""
     try:
         # Obtém os dados da requisição
@@ -140,7 +114,8 @@ def get_data(request):
 
         # Converte as datas para o formato datetime
         data_inicio = pd.to_datetime(inicio, format='%Y-%m-%d', errors='coerce')
-        data_fim = pd.to_datetime(fim, format='%Y-%m-%d', errors='coerce')
+        data_fim = pd.to_datetime(fim, format='%Y-%m-%d', errors='coerce').replace(hour=23, minute=59, second=59)
+        print(data_inicio, data_fim)
 
         # Verifica se as datas foram convertidas corretamente
         if pd.isna(data_inicio) or pd.isna(data_fim):
@@ -155,7 +130,7 @@ def get_data(request):
 
         # Resposta final
         response_data = {
-            'lpp_table': lpp_table,
+            'lpp_table': lpp_table.to_dict(orient='records'),
             'operadoras': list_operadoras,
             'score_braden_mensal': score_braden_mensal.to_dict(orient='records'),
             'pacientes_classificados_score_braden': score_braden_total,
@@ -168,3 +143,98 @@ def get_data(request):
         # Log de erro para depuração
         print(f"Erro em get_data: {str(e)}")
         return jsonify({"error": "Erro interno no servidor"}), 500
+    
+def getatends(data_inicio: datetime, data_fim: datetime, operadoras: Optional[List[str]] = None) -> List[dict]:
+    prontuarios = get_atendimentos()
+    atendimentos = []
+    for prontuario in prontuarios.to_dict(orient='records'):
+        for n_atendimento, atendimento in prontuario['ATENDIMENTOS'].items():
+            if atendimento['STATUS'] not in ['Alta', 'Em atendimento']:
+                continue
+            if atendimento['ENTRADA'] > data_fim or (atendimento['STATUS'] == 'Alta' and atendimento['ALTA'] < data_inicio):
+                continue
+
+            for _, inter in atendimento['INTERCORRENCIAS'].items():
+                if inter and inter['CLASSIFICACAO'] == 'LPP' and data_inicio <= inter['DATA_INICIO'] <= data_fim:
+                    atendimentos.append({
+                        'PACIENTE': prontuario['PACIENTE'],
+                        'PRONTUARIO': prontuario['PRONTUARIO'],
+                        'ATENDIMENTO': n_atendimento,
+                        'DATA_INICIO': inter['DATA_INICIO'],
+                        'OPERADORA': atendimento['OPERADORA'],
+                        'STATUS': atendimento['STATUS'],
+                        'DATA_ALTA': atendimento['ALTA']
+                    })
+    if operadoras:
+        atendimentos = [atend for atend in atendimentos if atend['OPERADORA'] in operadoras]
+
+    return sorted(atendimentos, key=lambda x: x['DATA_INICIO'])
+
+def download_xlsx(request: Request) -> Response:
+    data = request.json
+
+    if not data:
+        return jsonify({"error": "Dados não fornecidos no corpo da requisição"}), 400
+
+    inicio = data.get("data_inicio")
+    fim = data.get("data_fim")
+    operadoras = data.get("operadoras")
+
+    if not inicio or not fim:
+        return jsonify({"error": "Os atributos 'data_inicio' e 'data_fim' são obrigatórios"}), 400
+
+    data_inicio = pd.to_datetime(inicio, format='%Y-%m-%d', errors='coerce')
+    data_fim = pd.to_datetime(fim, format='%Y-%m-%d', errors='coerce')
+
+    if pd.isna(data_inicio) or pd.isna(data_fim):
+        return jsonify({"error": "Formato de data inválido. Use o formato 'YYYY-MM-DD'"}), 400
+
+    if data_inicio > data_fim:
+        return jsonify({"error": "A data de início deve ser anterior à data de fim"}), 400
+
+    prontuarios = getatends(data_inicio, data_fim, operadoras)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Pacientes"
+
+    headers = ['PACIENTE', 'PRONTUARIO', 'ATENDIMENTO', 'DATA_INICIO', 'OPERADORA', 'STATUS', 'DATA_ALTA']
+    ws.append(headers)
+
+    for prontuario in prontuarios:
+        ws.append([
+            prontuario['PACIENTE'],
+            prontuario['PRONTUARIO'],
+            prontuario['ATENDIMENTO'],
+            prontuario['DATA_INICIO'],
+            prontuario['OPERADORA'],
+            prontuario['STATUS'],
+            prontuario['DATA_ALTA'],
+        ])
+
+    for cell in ws['B'] + ws['C']:
+        cell.alignment = Alignment(horizontal='center')
+
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=4, max_col=7):
+        for cell in row:
+            cell.number_format = 'DD/MM/YYYY HH:MM'
+            cell.alignment = Alignment(horizontal='left')
+
+    for column in ws.columns:
+        max_length = max(len(str(cell.value)) for cell in column if cell.value)
+        adjusted_width = (max_length + 5)
+        ws.column_dimensions[column[0].column_letter].width = adjusted_width
+
+    # Remover erros de validação
+    ws.data_validations = []
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name='dados.xlsx',
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )

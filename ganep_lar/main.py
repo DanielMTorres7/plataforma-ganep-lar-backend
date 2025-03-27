@@ -1,8 +1,7 @@
 from config import Config
 import locale
-from flask import Flask, request, jsonify
+from flask import Flask, request
 from flask_cors import CORS
-from functools import wraps
 from flask_jwt_extended import JWTManager
 from services.data_base.models import db, User
 from routes import auth_bp, token_required
@@ -61,6 +60,12 @@ def paineisgestaorisco():
     from paineis.gestao_risco.main import get_data
     return get_data(request)
 
+@app.route("/paineis/bolinha", methods=["POST"])
+@token_required(required_permissions=["paineis", "paineis-gestaorisco", "paineis-gestaorisco:read"])
+def paineis_bolinha():
+    from paineis.bolinha.main import get_data
+    return get_data(request)
+
 @app.route("/orcamentos", methods=["POST"])
 @token_required(required_permissions=["orcamentos", "orcamentos:read"])
 def orca():
@@ -88,8 +93,14 @@ def datasets_atendimento_completo():
 @app.route("/prontuario", methods=["POST"])
 @token_required()
 def pront():
-    from aj import get_atend
-    return get_atend(request.json.get("prontuario"))
+    from aj import get_df
+    return get_df(request.json.get("prontuario"))
+
+@app.route('/download', methods=["POST"])
+@token_required()
+def download_xlsx():
+    from dashboards.lpp.main import download_xlsx
+    return download_xlsx(request)
 
 # Inicialização do servidor
 if __name__ == "__main__":

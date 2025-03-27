@@ -18,9 +18,86 @@ def get_atendimentos():
     
     # Converte a lista de dicionários para um DataFrame
     df = pd.DataFrame(dados)
-    df = df[["ENTRADA", "ALTA", "OPERADORA", "MODALIDADE", "STATUS", "PACIENTE"]]
     
     return df
+
+# def get_produtos_convenio(request: Request):
+#     """Endpoint para obter dados de LPPs e ScoreBraden."""
+#     data = request.json
+
+#     data_inicio = pd.to_datetime(data.get("data_inicio"), format='%Y-%m-%d', errors='coerce') - pd.Timedelta(days=1)
+#     data_fim = pd.to_datetime(data.get("data_fim"), format='%Y-%m-%d', errors='coerce')
+
+#     prontuarios = get_atendimentos()
+    
+#     produtos = []
+#     for prontuario in prontuarios:
+#         for n_atendimento, atendimento in prontuario['ATENDIMENTOS'].items():
+#             if atendimento['STATUS'] not in ['Alta', 'Em atendimento']:
+#                 continue
+#             if atendimento['OPERADORA'] == '' or atendimento['PROGRAMA'] == '':
+#                 continue
+#             if pd.isna(atendimento['ENTRADA']) or not atendimento['ENTRADA'] or atendimento['ENTRADA'] == "":
+#                 continue
+#             if atendimento['ENTRADA'] > data_fim or (atendimento['STATUS'] == 'Alta' and atendimento['ALTA'] < data_inicio):
+#                 continue
+#         operadora = atendimento['OPERADORA']
+#         produto = atendimento['PROGRAMA'][5:]
+#         entrada = atendimento['ENTRADA']
+#         alta = atendimento['ALTA']
+#         paciente = prontuario['PACIENTE']
+#         status = atendimento['STATUS']
+#         produtos.append({
+#             "operadora": operadora,
+#             "paciente": paciente,
+#             "produto": produto,
+#             "entrada": entrada,
+#             "alta": alta,
+#             'atendimento': n_atendimento,
+#             'status': status
+#         })
+
+#     dias = pd.date_range(start=data_inicio, end=data_fim, freq='D')
+#     produtos = pd.DataFrame(produtos)
+#     final = []
+#     produtos_operadora = produtos.groupby(['produto', 'operadora'])
+
+#     for (produto, operadora), group in produtos_operadora:
+#         diario = []
+#         pacientes_ateriores = set()
+#         for dia in dias:
+#             pacientes_dia = set(group[
+#                 (group['entrada'] <= dia) & 
+#                 (group['alta'] >= dia)
+#             ]['paciente'])
+#             total_pacientes = len(pacientes_dia)
+#             dados = {
+#                 "dia": dia.strftime('%d/%m/%Y'),
+#                 "total": total_pacientes
+#             }
+#             if len(diario) > 0:
+#                 entradas = list(pacientes_dia - pacientes_ateriores)
+#                 saidas = list(pacientes_ateriores - pacientes_dia)
+#                 if len(entradas) > 0:
+#                     dados["entradas"] = entradas
+#                 if len(saidas) > 0:
+#                     dados["saidas"] = saidas
+#             pacientes_ateriores = pacientes_dia
+#             diario.append(dados)
+
+            
+#         final.append({
+#             "operadora": operadora,
+#             "produto": produto,
+#             "diario": diario,
+#             "media": round(len(group) / len(dias), 1)
+#         })
+        
+#     return {
+#         "operadoras": final
+#     }
+
+
 
 def get_produtos_convenio(request: Request):
     """Endpoint para obter dados de LPPs e ScoreBraden."""

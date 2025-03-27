@@ -31,6 +31,7 @@ class GetDataFromSheets:
         df = pd.DataFrame(data)
         df_model = [self.class_model(**kwargs.to_dict()) for index, kwargs in df.iterrows()]
         df = pd.DataFrame([atendimento.__dict__() for atendimento in df_model])
+        print(df)
 
         return df
 

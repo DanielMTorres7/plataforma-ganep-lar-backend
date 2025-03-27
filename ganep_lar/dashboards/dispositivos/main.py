@@ -32,7 +32,7 @@ def get_df_dispositivos(data_inicio: datetime, data_fim: datetime, operadoras: O
     atendimentos = retrieve_data()
 
     filters = (
-        (atendimentos['ENTRADA'].dt.normalize() <= data_fim) &
+        (atendimentos['ENTRADA'].dt.normalize() < data_fim) &
         (
             ((atendimentos['STATUS'] == 'Alta') & (atendimentos['ALTA'].dt.normalize() >= data_inicio)) |
             (atendimentos['STATUS'] == 'Em atendimento')
@@ -48,7 +48,7 @@ def get_df_dispositivos(data_inicio: datetime, data_fim: datetime, operadoras: O
     )
 
     # filtrar valores unicos de ATENDIMENTO
-    atendimentos = atendimentos[filters].drop_duplicates(subset='ATENDIMENTO')
+    atendimentos = atendimentos[filters]
     list_operadoras = [{'label': f'{op} : {atendimentos[atendimentos["OPERADORA"] == op].shape[0]}', 'value': op} for op in atendimentos['OPERADORA'].unique()]
     # Ordena as operadoras por quantidade de atendimentos (extraindo o número do label)
     list_operadoras = sorted(list_operadoras, key=lambda x: int(x['label'].split(' : ')[1]), reverse=True)
@@ -74,7 +74,7 @@ def get_df_dispositivos(data_inicio: datetime, data_fim: datetime, operadoras: O
 
     for mes in meses:
         inicio_mes = mes.replace(day=1)
-        fim_mes = (mes + pd.DateOffset(months=1) - pd.DateOffset(days=1))
+        fim_mes = (mes + pd.DateOffset(months=1) - pd.DateOffset(days=1)).replace(hour=23, minute=59, second=59)
 
         atendimentos_mes = atendimentos[
             (atendimentos['ENTRADA'].dt.normalize() <= fim_mes) &
@@ -82,18 +82,13 @@ def get_df_dispositivos(data_inicio: datetime, data_fim: datetime, operadoras: O
                 ((atendimentos['STATUS'] == 'Alta') & (atendimentos['ALTA'].dt.normalize() >= inicio_mes)) |
                 (atendimentos['STATUS'] == 'Em atendimento')
             )
-        ].copy()
+        ]
 
         tqt = len(atendimentos_mes[(atendimentos_mes['TQT'])])
-        
         gtt = len(atendimentos_mes[(atendimentos_mes['GTT'])])
-
         sne = len(atendimentos_mes[(atendimentos_mes['SNE'])])
-        
         cvd = len(atendimentos_mes[(atendimentos_mes['CVD'])])
-
         cva = len(atendimentos_mes[(atendimentos_mes['CVA'])])
-
         picc = len(atendimentos_mes[(atendimentos_mes['PICC'])])
 
         # Adiciona os dados do mês à lista
@@ -123,7 +118,7 @@ def get_data(request: Request):
     
     operadoras = data.get("operadoras")
     data_inicio = pd.to_datetime(inicio, format='%Y-%m-%d', errors='coerce')
-    data_fim = pd.to_datetime(fim, format='%Y-%m-%d', errors='coerce')
+    data_fim = pd.to_datetime(fim, format='%Y-%m-%d', errors='coerce').replace(hour=23, minute=59, second=59)
 
     df_dispositivos, n_tqt, n_gtt, n_sne, n_cvd, n_cva, n_picc, n_atendimentos, list_operadoras = get_df_dispositivos(data_inicio, data_fim, operadoras)
     # Resposta final

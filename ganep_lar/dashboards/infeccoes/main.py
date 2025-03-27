@@ -26,13 +26,13 @@ def get_atendimentos() -> pd.DataFrame:
 cache_ccid = TTLCache(maxsize=100, ttl=3600)
 @cached(cache_ccid)
 def get_ccids() -> pd.DataFrame:
-    colecao_atendimentos = db["ccid"]
+    colecao_atendimentos = db["ccids"]
     # Consulta todos os documentos na coleção
     dados = list(colecao_atendimentos.find())
     
     # Converte a lista de dicionários para um DataFrame
     df = pd.DataFrame(dados)
-    df = df[["NOME_PACIENTE", "DATA_OCORRENCIA", "CNU_TIPO_INFECCAO", "OPERADORA", "TIPO_INFECCAO"]]
+    df = df[["NOME_PACIENTE", "DATA_OCORRENCIA", "CNU_TIPO_INFECCAO", "OPERADORA", "TIPO_INFECCAO", "ATENDIMENTO"]]
     
     return df
 
@@ -42,7 +42,6 @@ def get_df(data_inicio: datetime, data_fim: datetime, operadoras: Optional[List[
     # Obtém os atendimentos
     atendimentos = get_atendimentos()
     ccids = get_ccids()
-
     filtros_atendimentos = (
         (atendimentos['ENTRADA'].dt.normalize() <= data_fim) &
         (
@@ -69,9 +68,16 @@ def get_df(data_inicio: datetime, data_fim: datetime, operadoras: Optional[List[
     if operadoras:
         atendimentos = atendimentos[atendimentos['OPERADORA'].isin(operadoras)]
         ccids = ccids[ccids['OPERADORA'].isin(operadoras)]
-
-    n_ccids = len(ccids)
-    n_itu = len(ccids[(ccids['CNU_TIPO_INFECCAO'] == 'ITU')])
+    
+    n_ccids = len(ccids[
+        (ccids['DATA_OCORRENCIA'] >= data_inicio) &
+        (ccids['DATA_OCORRENCIA'] <= data_fim)
+    ].copy().drop_duplicates(subset='NOME_PACIENTE'))
+    n_itu = len(ccids[
+            (ccids['DATA_OCORRENCIA'] >= data_inicio) &
+            (ccids['DATA_OCORRENCIA'] <= data_fim) &
+            (ccids['CNU_TIPO_INFECCAO'] == 'ITU')
+        ].copy().drop_duplicates(subset='NOME_PACIENTE'))
     n_atendimentos = len(atendimentos)
 
     last_ccids = ccids.sort_values(by='DATA_OCORRENCIA', ascending=False).to_dict(orient='records')
@@ -85,7 +91,7 @@ def get_df(data_inicio: datetime, data_fim: datetime, operadoras: Optional[List[
         mes_infeccoes = ccids[
             (ccids['DATA_OCORRENCIA'] >= mes) &
             (ccids['DATA_OCORRENCIA'] <= fim_mes)
-        ]
+        ].copy().drop_duplicates(subset='NOME_PACIENTE')
 
         infeccoes = len(mes_infeccoes)
         itu = len(mes_infeccoes[mes_infeccoes['CNU_TIPO_INFECCAO'] == 'ITU'])
@@ -94,6 +100,8 @@ def get_df(data_inicio: datetime, data_fim: datetime, operadoras: Optional[List[
             (atendimentos['ENTRADA'].dt.normalize() >= mes) &
             (atendimentos['ENTRADA'].dt.normalize() <= fim_mes)
         ])
+
+        pd.DataFrame(mes_infeccoes).to_csv('infeccoes.csv', index=False)
 
         df_infeccoes.append({
             'mes': mes.strftime('%b/%Y'),
@@ -117,7 +125,7 @@ def get_data(request: Request):
     
     operadoras = data.get("operadoras")
     data_inicio = pd.to_datetime(inicio, format='%Y-%m-%d', errors='coerce')
-    data_fim = pd.to_datetime(fim, format='%Y-%m-%d', errors='coerce')
+    data_fim = pd.to_datetime(fim, format='%Y-%m-%d', errors='coerce').replace(hour=23, minute=59, second=59)
 
 
     df_internacoes, n_atendimentos, n_ccids, n_itu, tabela_ultimas_infeccoes, operadoras = get_df(data_inicio, data_fim, operadoras)
