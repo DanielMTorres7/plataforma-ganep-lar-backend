@@ -3,7 +3,6 @@ import locale
 from flask import Flask, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
-from services.data_base.models import db, User
 from routes import auth_bp, token_required
 
 app = Flask(__name__)
@@ -11,15 +10,10 @@ app.config.from_object(Config)
 CORS(app)
 
 # Inicializa o banco de dados e o JWT
-db.init_app(app)
 jwt = JWTManager(app)
 
 # Registra o blueprint de autenticação
 app.register_blueprint(auth_bp)
-
-# Cria as tabelas do banco de dados
-with app.app_context():
-    db.create_all()
 
 # Definição de roles e permissões
 

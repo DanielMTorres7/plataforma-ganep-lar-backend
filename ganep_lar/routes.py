@@ -1,11 +1,15 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token
-from services.data_base.models import db, User
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
-from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from bson.objectid import ObjectId
 
+from services.mongo.main import db
 
+users_collection = db['users']
+
+# Definição de roles (mesma estrutura)
 roles = {
     'admin': [
         'dashboards', 
@@ -35,28 +39,30 @@ roles = {
 }
 roles['moderator'].extend(roles['admin'])
 
-# Decorator para verificar permissões
+# Decorator para verificar permissões (adaptado para MongoDB)
 def token_required(required_permissions=None, required_role=None):
     def decorator(f):
         @wraps(f)
         @jwt_required()
         def decorated(*args, **kwargs):
-            current_user = get_jwt_identity()
-            user: User = User.query.get(current_user)
-
+            current_user_id = get_jwt_identity()
+            
+            # Busca o usuário no MongoDB
+            user = users_collection.find_one({'_id': ObjectId(current_user_id)})
+            
             if not user:
                 return jsonify({'message': 'Usuário não encontrado!'}), 403
 
             # Verifica se o usuário tem a role necessária
-            if user.role not in roles:
+            if user['role'] not in roles:
                 return jsonify({'message': 'Unauthorized: Role required!'}), 403
 
-            if required_role and user.role != required_role:
+            if required_role and user['role'] != required_role:
                 return jsonify({'message': 'Unauthorized: Role required!'}), 403
 
             # Verifica as permissões
             if required_permissions:
-                user_permissions = roles[user.role]
+                user_permissions = roles[user['role']]
                 for permission in required_permissions:
                     if permission not in user_permissions:
                         return jsonify({'message': 'Unauthorized: Permission required!'}), 403
@@ -64,8 +70,6 @@ def token_required(required_permissions=None, required_role=None):
             return f(*args, **kwargs)
         return decorated
     return decorator
-
-
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -81,23 +85,28 @@ def register():
     role = data.get('role', 'user')
     permissions = data.get('permissions', '')
 
-    if User.query.filter_by(usuario=usuario).first():
+    # Verifica se o usuário já existe
+    if users_collection.find_one({'$or': [{'usuario': usuario}, {'email': email}]}):
         return jsonify({"msg": "Usuário já existe"}), 400
 
-    new_user = User(
-        nome=nome,
-        sobrenome=sobrenome,
-        usuario=usuario,
-        email=email,
-        role=role,
-        permissions=permissions
-    )
-    new_user.set_password(senha)
+    # Cria o novo usuário
+    new_user = {
+        'nome': nome,
+        'sobrenome': sobrenome,
+        'usuario': usuario,
+        'email': email,
+        'role': role,
+        'permissions': permissions,
+        'password_hash': generate_password_hash(senha)
+    }
 
-    db.session.add(new_user)
-    db.session.commit()
-
-    return jsonify({"msg": "Usuário criado com sucesso"}), 201
+    # Insere no MongoDB
+    result = users_collection.insert_one(new_user)
+    
+    return jsonify({
+        "msg": "Usuário criado com sucesso",
+        "id": str(result.inserted_id)
+    }), 201
 
 @auth_bp.route('/api/login', methods=['POST'])
 def login():
@@ -108,20 +117,26 @@ def login():
     if not email or not password:
         return jsonify({'error': 'Email e senha são obrigatórios'}), 400
 
-    # Verifica o usuário no banco de dados
-    user: User = User.query.filter_by(email=email).first()
+    # Busca o usuário no MongoDB
+    user = users_collection.find_one({'email': email})
 
-    if not user or not user.check_password(password):
+    if not user or not check_password_hash(user['password_hash'], password):
         return jsonify({'error': 'Email ou senha inválidos'}), 401
 
-    # Cria o token JWT
+    # Cria o token JWT usando o ObjectId como identity
     access_token = create_access_token(
-        identity=str(user.id), 
-        
+        identity=str(user['_id']),
         additional_claims={
-            'role': user.role,
-            'permissions': ''
+            'role': user['role'],
+            'permissions': user.get('permissions', '')
         }
     )
 
-    return jsonify({'token': access_token}), 200
+    return jsonify({
+        'token': access_token,
+        'user': {
+            'id': str(user['_id']),
+            'email': user['email'],
+            'role': user['role']
+        }
+    }), 200

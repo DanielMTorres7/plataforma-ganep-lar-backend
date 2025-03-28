@@ -1,7 +1,7 @@
 from pymongo import MongoClient
-client = MongoClient("mongodb://localhost:27017/")
+from os import getenv
+client = MongoClient(getenv("MONGO_URI"))
 db = client["GanepLar"]
-
 
 __all__ = [
     'MongoClient',
