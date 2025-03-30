@@ -7,7 +7,13 @@ from routes import auth_bp, token_required
 
 app = Flask(__name__)
 app.config.from_object(Config)
-CORS(app)
+CORS(app, resources={
+    r"/orcamentos": {
+        "origins": "https://gestaoativa.dstorres.com.br",
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
 
 # Inicializa o banco de dados e o JWT
 jwt = JWTManager(app)
