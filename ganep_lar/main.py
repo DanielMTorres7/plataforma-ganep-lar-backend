@@ -7,7 +7,161 @@ from routes import auth_bp, token_required
 
 app = Flask(__name__)
 app.config.from_object(Config)
-CORS(app)
+CORS(app, resources={
+    r"/orcamentos": {
+        "origins": [
+            "https://gestaoativa.dstorres.com.br",
+            "http://gestaoativa.dstorres.com.br",
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": [
+            "Content-Type", 
+            "Authorization",
+            "X-Requested-With",
+            "Accept",
+        ],
+        "expose_headers": [
+            "Content-Disposition",
+        ],
+        "supports_credentials": True
+    },
+    r"/produtosconvenio": {
+        "origins": [
+            "https://gestaoativa.dstorres.com.br",
+            "http://gestaoativa.dstorres.com.br",
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": [
+            "Content-Type", 
+            "Authorization",
+            "X-Requested-With",
+            "Accept",
+        ],
+        "expose_headers": [
+            "Content-Disposition",
+        ],
+        "supports_credentials": True
+    },
+    r"/detalhesmod": {
+        "origins": [
+            "https://gestaoativa.dstorres.com.br",
+            "http://gestaoativa.dstorres.com.br",
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": [
+            "Content-Type", 
+            "Authorization",
+            "X-Requested-With",
+            "Accept",
+        ],
+        "expose_headers": [
+            "Content-Disposition",
+        ],
+        "supports_credentials": True
+    },
+    r"/datasets/*": {
+        "origins": [
+            "https://gestaoativa.dstorres.com.br",
+            "http://gestaoativa.dstorres.com.br",
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": [
+            "Content-Type", 
+            "Authorization",
+            "X-Requested-With",
+            "Accept",
+        ],
+        "expose_headers": [
+            "Content-Disposition",
+        ],
+        "supports_credentials": True
+    },
+    r"/prontuario": {
+        "origins": [
+            "https://gestaoativa.dstorres.com.br",
+            "http://gestaoativa.dstorres.com.br",
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": [
+            "Content-Type", 
+            "Authorization",
+            "X-Requested-With",
+            "Accept",
+        ],
+        "expose_headers": [
+            "Content-Disposition",
+        ],
+        "supports_credentials": True
+    },
+    r"/dashboards/*": {
+        "origins": [
+            "https://gestaoativa.dstorres.com.br",
+            "http://gestaoativa.dstorres.com.br",
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": [
+            "Content-Type", 
+            "Authorization",
+            "X-Requested-With",
+            "Accept",
+        ],
+        "expose_headers": [
+            "Content-Disposition",
+        ],
+        "supports_credentials": True
+    },
+    r"/paineis/*": {
+        "origins": [
+            "https://gestaoativa.dstorres.com.br",
+            "http://gestaoativa.dstorres.com.br",
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": [
+            "Content-Type", 
+            "Authorization",
+            "X-Requested-With",
+            "Accept",
+        ],
+        "expose_headers": [
+            "Content-Disposition",
+        ],
+        "supports_credentials": True
+    },
+    r"/download": {
+        "origins": [
+            "https://gestaoativa.dstorres.com.br",
+            "http://gestaoativa.dstorres.com.br",
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": [
+            "Content-Type", 
+            "Authorization",
+            "X-Requested-With",
+            "Accept",
+        ],
+        "expose_headers": [
+            "Content-Disposition",
+        ],
+        "supports_credentials": True
+    },
+    r"/api/login": {
+        "origins": [
+            "https://gestaoativa.dstorres.com.br",
+            "http://gestaoativa.dstorres.com.br",
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": [
+            "Content-Type", 
+            "Authorization",
+            "X-Requested-With",
+            "Accept",
+        ],
+        "expose_headers": [
+            "Content-Disposition",
+        ],
+        "supports_credentials": True
+    }
+})
 
 # Inicializa o banco de dados e o JWT
 jwt = JWTManager(app)
@@ -100,4 +254,4 @@ def download_xlsx():
 if __name__ == "__main__":
     locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
     context = ('ganep_lar/services/cert/fullchain.pem', 'ganep_lar/services/cert/privkey.pem')
-    app.run(host='192.168.77.212', port=5000, ssl_context=context)
+    app.run(host='0.0.0.0', port=5000)

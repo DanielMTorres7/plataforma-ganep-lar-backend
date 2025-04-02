@@ -2,7 +2,6 @@ import pandas as pd
 from datetime import datetime
 from cachetools import cached, TTLCache
 from sqlalchemy import text
-from services.database import SessionLocal
 from typing import List, Optional
 from flask import jsonify, Request
 from services.mongo import db

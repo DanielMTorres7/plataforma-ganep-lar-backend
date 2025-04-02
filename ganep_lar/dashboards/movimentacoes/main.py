@@ -110,7 +110,7 @@ def get_df_internacoes(data_inicio: datetime, data_fim: datetime, operadoras: Op
     for alta in altas['MOTIVO_ALTA'].unique():
         if alta:
             motivos[alta] = altas[altas['MOTIVO_ALTA'] == alta].to_dict(orient='records')
-    print(motivos)
+    
     
 
     return pd.DataFrame(df_atendimentos), n_atendimentos, n_entradas, n_altas, list_operadoras, pd.DataFrame(df_motivos), motivos

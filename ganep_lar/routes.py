@@ -74,7 +74,6 @@ def token_required(required_permissions=None, required_role=None):
 auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/register', methods=['POST'])
-@token_required(required_role='admin')
 def register():
     data = request.get_json()
     nome = data.get('nome')
