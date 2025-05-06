@@ -30,7 +30,7 @@ def get_last_hosp_table_events(data_inicio: datetime, data_fim: datetime, operad
     atendimentos = retrieve_data()
 
     filtros = (
-        (atendimentos['ENTRADA'] <= data_fim) &
+        (atendimentos['ALTA'] <= data_fim) &
         (atendimentos['STATUS'] == 'Alta') &
         atendimentos['ALTA'].notnull() &
         (atendimentos['ALTA'] >= data_inicio) &
@@ -45,10 +45,14 @@ def get_last_hosp_table_events(data_inicio: datetime, data_fim: datetime, operad
         {
             'data': atend['ALTA'],
             'paciente': atend['PACIENTE'],
+            'PRONTUARIO': atend['PRONTUARIO'],
+            'ATENDIMENTO': atend['ATENDIMENTO'],
             'operadora': atend['OPERADORA']
         }
         for _, atend in atendimentos.iterrows()
-    ]).sort_values(by='data', ascending=False)
+    ])
+    if not df.empty:
+        df = df.sort_values(by='data', ascending=False)
     return df
 
 import pandas as pd
@@ -61,18 +65,20 @@ def get_df_internacoes(data_inicio: datetime, data_fim: datetime, operadoras: Op
     atendimentos = retrieve_data()
 
     n_atendimentos = len(atendimentos[
-        (atendimentos['ENTRADA'].dt.normalize() <= data_fim) &
+        (atendimentos['ENTRADA'] <= data_fim) &
         (
-            ((atendimentos['STATUS'] == 'Alta') & (atendimentos['ALTA'].dt.normalize() >= data_inicio)) |
+            ((atendimentos['STATUS'] == 'Alta') & (atendimentos['ALTA'] >= data_inicio)) |
             (atendimentos['STATUS'] == 'Em atendimento')
-        )
+        ) &
+        (atendimentos['OPERADORA'].isin(operadoras) if operadoras else True)
     ])
 
     # Filtra as internações
-    filtros_internacoes = (
-        (atendimentos['ENTRADA'].dt.normalize() <= data_fim) &
+    filtros_internacoes =  (
+        (atendimentos['ALTA'] <= data_fim) &
         (atendimentos['STATUS'] == 'Alta') &
-        (atendimentos['ALTA'].dt.normalize() >= data_inicio) &
+        atendimentos['ALTA'].notnull() &
+        (atendimentos['ALTA'] >= data_inicio) &
         (atendimentos['MOTIVO_ALTA'] == 'Hospitalização')
     )
     internacoes = atendimentos[filtros_internacoes].copy()
@@ -85,8 +91,8 @@ def get_df_internacoes(data_inicio: datetime, data_fim: datetime, operadoras: Op
     if operadoras:
         internacoes = internacoes[internacoes['OPERADORA'].isin(operadoras)]
 
-    # Gera o intervalo de meses
-    meses = pd.date_range(start=data_inicio, end=data_fim, freq='MS')
+    # Gera o intervalo de meses 
+    meses = pd.date_range(start=data_inicio.replace(day=1), end=data_fim, freq='MS')
 
     n_internacoes = len(internacoes)
 
@@ -99,18 +105,21 @@ def get_df_internacoes(data_inicio: datetime, data_fim: datetime, operadoras: Op
 
         # Filtra internações no mês
         filtro_mes_internacoes = (
-            (internacoes['ENTRADA'].dt.normalize() <= fim_mes) &
-            (internacoes['ALTA'].dt.normalize() >= inicio_mes) &
-            (internacoes['ALTA'].dt.normalize() <= fim_mes)
+            (internacoes['ENTRADA'] <= fim_mes) &
+            (internacoes['ALTA'] >= inicio_mes) &
+            (internacoes['ALTA'] >= data_inicio) &
+            (internacoes['ALTA'] <= fim_mes) &
+            (internacoes['ALTA'] <= data_fim)
         )
         internacoes_mes = internacoes[filtro_mes_internacoes].drop_duplicates(subset='ATENDIMENTO', keep='last')
         num_internacoes = len(internacoes_mes)
 
         # Filtra atendimentos no mês
         filtro_mes_atendimentos = (
-            (atendimentos['ENTRADA'].dt.normalize() <= fim_mes) &
+            (atendimentos['ENTRADA'] <= fim_mes) &
+            (atendimentos['ENTRADA'] <= data_fim) &
             (
-                ((atendimentos['STATUS'] == 'Alta') & (atendimentos['ALTA'].dt.normalize() >= inicio_mes)) |
+                ((atendimentos['STATUS'] == 'Alta') & (atendimentos['ALTA'] >= inicio_mes) & (atendimentos['ALTA'] >= data_inicio)) |
                 (atendimentos['STATUS'] == 'Em atendimento')
             )
         )
@@ -146,7 +155,7 @@ def get_data(request: Request):
     
     operadoras = data.get("operadoras")
     data_inicio = pd.to_datetime(inicio, format='%Y-%m-%d', errors='coerce')
-    data_fim = pd.to_datetime(fim, format='%Y-%m-%d', errors='coerce')
+    data_fim = pd.to_datetime(fim, format='%Y-%m-%d', errors='coerce').replace(hour=23, minute=59, second=59)
 
     tabela_ultimas_hospitalizacoes = get_last_hosp_table_events(data_inicio, data_fim, operadoras).to_dict(orient='records')
     df_internacoes, operadoras, atendimentos, internacoes = get_df_internacoes(data_inicio, data_fim, operadoras)

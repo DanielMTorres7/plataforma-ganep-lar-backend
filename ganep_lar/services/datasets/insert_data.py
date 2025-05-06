@@ -74,6 +74,7 @@ def isnat(value):
 
 def insert_mongo_data(table_name, df: pd.DataFrame):
     # Selecionar o banco de dados e a coleção
+    db.drop_collection(table_name)
     colecao = db[table_name]
     
     # Substituir NaT por None em todo o DataFrame

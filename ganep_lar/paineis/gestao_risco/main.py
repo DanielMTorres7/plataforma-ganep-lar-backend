@@ -50,6 +50,8 @@ def get_values():
             })
 
             for ccid in atendimento['CCIDS']:
+                if pd.isna(ccid['DATA_OCORRENCIA']):
+                    continue
                 if ccid['DATA_OCORRENCIA'] >= inicio_mes and ccid['DATA_OCORRENCIA'] < fim_mes:
                     n_ccids.append({
                         'ATENDIMENTO': atendimento['ATENDIMENTO'],

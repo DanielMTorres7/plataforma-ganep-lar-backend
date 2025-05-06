@@ -81,7 +81,7 @@ def get_df(data_inicio: datetime, data_fim: datetime, operadoras: Optional[List[
     n_atendimentos = len(atendimentos)
 
     last_ccids = ccids.sort_values(by='DATA_OCORRENCIA', ascending=False).to_dict(orient='records')
-
+    
     meses = pd.date_range(start=data_inicio, end=data_fim, freq='MS')
     df_infeccoes = []
 

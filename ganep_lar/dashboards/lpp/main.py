@@ -28,6 +28,8 @@ def get_df(data_inicio: datetime, data_fim: datetime, operadoras: Optional[List[
     scorebradens = []
     for prontuario in prontuarios:
         for _, atendimento in prontuario['ATENDIMENTOS'].items():
+            if pd.isna(atendimento['ENTRADA']) or not atendimento['ENTRADA'] or atendimento['ENTRADA'] == "":
+                continue
             if atendimento['STATUS'] not in ['Alta', 'Em atendimento']:
                 continue
             if atendimento['ENTRADA'] > (data_fim) or (atendimento['STATUS'] == 'Alta' and atendimento['ALTA'] < data_inicio):
@@ -40,6 +42,7 @@ def get_df(data_inicio: datetime, data_fim: datetime, operadoras: Optional[List[
                 scorebradens.append({
                     'PACIENTE': prontuario['PACIENTE'],
                     'PRONTUARIO': prontuario['PRONTUARIO'],
+                    'ATENDIMENTO': atendimento['ATENDIMENTO'],
                     'ENTRADA': atendimento['ENTRADA'],
                     'STATUS': atendimento['STATUS'],
                     'ALTA': atendimento['ALTA'],
@@ -47,10 +50,13 @@ def get_df(data_inicio: datetime, data_fim: datetime, operadoras: Optional[List[
                 })
 
             for _, inter in atendimento['INTERCORRENCIAS'].items():
+                if pd.isna(inter['DATA_INICIO']):
+                    continue
                 if inter['CLASSIFICACAO'] == 'LPP' and inter['DATA_INICIO'] >= data_inicio and inter['DATA_INICIO'] <= data_fim:
                     lpps.append({
                         'PACIENTE': prontuario['PACIENTE'],
                         'PRONTUARIO': prontuario['PRONTUARIO'],
+                        'ATENDIMENTO': atendimento['ATENDIMENTO'],
                         'DATA_INICIO': inter['DATA_INICIO'],
                         'OPERADORA': atendimento['OPERADORA']
                     })

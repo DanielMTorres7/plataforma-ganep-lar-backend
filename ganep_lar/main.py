@@ -7,12 +7,19 @@ from routes import auth_bp, token_required
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+origins = [
+    "http://localhost:3000",
+    "https://localhost:3000",
+    "http://192.168.100.250:3000",
+    "https://192.168.100.250:3000",
+]
+
+
+# Configurações do Flask-CORS liberar acesso a todos os domínios
 CORS(app, resources={
     r"/orcamentos": {
-        "origins": [
-            "https://gestaoativa.dstorres.com.br",
-            "http://gestaoativa.dstorres.com.br",
-        ],
+        "origins": origins,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": [
             "Content-Type", 
@@ -26,10 +33,7 @@ CORS(app, resources={
         "supports_credentials": True
     },
     r"/produtosconvenio": {
-        "origins": [
-            "https://gestaoativa.dstorres.com.br",
-            "http://gestaoativa.dstorres.com.br",
-        ],
+        "origins": origins,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": [
             "Content-Type", 
@@ -43,10 +47,7 @@ CORS(app, resources={
         "supports_credentials": True
     },
     r"/detalhesmod": {
-        "origins": [
-            "https://gestaoativa.dstorres.com.br",
-            "http://gestaoativa.dstorres.com.br",
-        ],
+        "origins": origins,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": [
             "Content-Type", 
@@ -60,10 +61,7 @@ CORS(app, resources={
         "supports_credentials": True
     },
     r"/datasets/*": {
-        "origins": [
-            "https://gestaoativa.dstorres.com.br",
-            "http://gestaoativa.dstorres.com.br",
-        ],
+        "origins": origins,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": [
             "Content-Type", 
@@ -77,10 +75,7 @@ CORS(app, resources={
         "supports_credentials": True
     },
     r"/prontuario": {
-        "origins": [
-            "https://gestaoativa.dstorres.com.br",
-            "http://gestaoativa.dstorres.com.br",
-        ],
+        "origins": origins,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": [
             "Content-Type", 
@@ -94,10 +89,7 @@ CORS(app, resources={
         "supports_credentials": True
     },
     r"/dashboards/*": {
-        "origins": [
-            "https://gestaoativa.dstorres.com.br",
-            "http://gestaoativa.dstorres.com.br",
-        ],
+        "origins": origins,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": [
             "Content-Type", 
@@ -111,10 +103,7 @@ CORS(app, resources={
         "supports_credentials": True
     },
     r"/paineis/*": {
-        "origins": [
-            "https://gestaoativa.dstorres.com.br",
-            "http://gestaoativa.dstorres.com.br",
-        ],
+        "origins": origins,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": [
             "Content-Type", 
@@ -128,10 +117,7 @@ CORS(app, resources={
         "supports_credentials": True
     },
     r"/download": {
-        "origins": [
-            "https://gestaoativa.dstorres.com.br",
-            "http://gestaoativa.dstorres.com.br",
-        ],
+        "origins": origins,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": [
             "Content-Type", 
@@ -145,10 +131,7 @@ CORS(app, resources={
         "supports_credentials": True
     },
     r"/api/login": {
-        "origins": [
-            "https://gestaoativa.dstorres.com.br",
-            "http://gestaoativa.dstorres.com.br",
-        ],
+        "origins": origins,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": [
             "Content-Type", 

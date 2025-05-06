@@ -12,7 +12,7 @@ CACHE_MAPA_ATENDIMENTOS = TTLCache(maxsize=100, ttl=3600)
 @cached(CACHE_MAPA_ATENDIMENTOS)
 def get_atendimentos():
     """Busca os dados do MongoDB e retorna um DataFrame."""
-    colecao_atendimentos = db["mapa_atendimentos"]
+    colecao_atendimentos = db["atendimentos_completo"]
     # Consulta todos os documentos na coleção
     dados = list(colecao_atendimentos.find())
     
@@ -105,24 +105,28 @@ def get_produtos_convenio(request: Request):
     inicio = data.get("data_inicio")
     fim = data.get("data_fim")
     # Definir o início e o fim do mês
-    mes_inicio = pd.to_datetime(inicio, format='%Y-%m-%d', errors='coerce')
-    mes_fim = pd.to_datetime(fim, format='%Y-%m-%d', errors='coerce')
+    mes_inicio = pd.to_datetime(inicio, format='%Y-%m-%d', errors='coerce') - pd.DateOffset(days=1)
+    mes_fim = pd.to_datetime(fim, format='%Y-%m-%d', errors='coerce') + pd.DateOffset(days=1)
 
     df_atendimentos = get_atendimentos()
 
     # Filtrar os atendimentos que estão dentro do mês atual 
     filtro = (
     (
-        df_atendimentos['ENTRADA'] <= mes_fim    
+        df_atendimentos['ENTRADA'] < mes_fim    
     ) & 
     (
         (pd.isna(df_atendimentos['ALTA'])) | 
-        (df_atendimentos['ALTA'] >= mes_fim)
+        (df_atendimentos['ALTA'] >= mes_inicio)
     ) & 
         (df_atendimentos['STATUS'] != "Reprovado")
     )
     df_filtrado = df_atendimentos[filtro]
-    
+    df_filtrado = df_filtrado.copy()
+    df_filtrado['MODALIDADE'] = df_filtrado.apply(
+        lambda row: row['PROGRAMA'][5:] if (row['COMPL_PADRAO'] == '' or row['COMPL_PADRAO'] == 'Aberto') else row['COMPL_PADRAO'],
+        axis=1
+    )
     operadoras = []
     dias = pd.date_range(start=mes_inicio, end=mes_fim, freq='D')
     # Agrupar por operadora e obter os produtos únicos
@@ -132,14 +136,15 @@ def get_produtos_convenio(request: Request):
         pacientes_anteriores = set()  # Usar um conjunto para facilitar a comparação
         # Para cada dia no intervalo
         for dia in dias:
-            pacientes_dia = set([
-                paciente['PACIENTE']
-                for paciente in group.to_dict(orient='records')
+            diafim = dia + pd.DateOffset(days=1)
+            pacientes_dia = {
+                str(paciente['ATENDIMENTO']) : paciente.to_dict()
+                for _, paciente in group.iterrows()
                 if (
-                    paciente['ENTRADA'] <= dia and
+                    paciente['ENTRADA'] < diafim and
                     (pd.isna(paciente['ALTA']) or paciente['ALTA'] >= dia)
                 )
-            ])
+            }
             total_pacientes += len(pacientes_dia)
             atts = {
                 "dia": dia.strftime('%d/%m/%Y'),
@@ -148,8 +153,35 @@ def get_produtos_convenio(request: Request):
             
             # Entradas e saídas com relação ao dia anterior, comparar a lista de pacientes
             if len(diario) > 0:
-                entradas = list(pacientes_dia - pacientes_anteriores)
-                saidas = list(pacientes_anteriores - pacientes_dia)
+                entradas = []
+                saidas = []
+                # Verificar entradas e saídas
+                for atd, paciente in pacientes_dia.items():
+                    if atd not in pacientes_anteriores.keys():
+                        # Append 'PACIENTE', 'ATENDIMENTO', 'PRONTUARIO'
+                        entradas.append({
+                            "PACIENTE": paciente['PACIENTE'],
+                            "ATENDIMENTO": paciente['ATENDIMENTO'],
+                            "PRONTUARIO": paciente['PRONTUARIO'],
+                            "OPERADORA": paciente['OPERADORA'],
+                            "STATUS": paciente['STATUS'],
+                            "ENTRADA": paciente['ENTRADA'],
+                            "ALTA": paciente['ALTA'] if not pd.isna(paciente['ALTA']) else ''
+                        })
+
+                for atd, paciente in pacientes_anteriores.items():
+                    if atd not in pacientes_dia.keys():
+                        # Append 'PACIENTE', 'ATENDIMENTO', 'PRONTUARIO'
+                        saidas.append({
+                            "PACIENTE": paciente['PACIENTE'],
+                            "ATENDIMENTO": paciente['ATENDIMENTO'],
+                            "PRONTUARIO": paciente['PRONTUARIO'],
+                            "OPERADORA": paciente['OPERADORA'],
+                            "STATUS": paciente['STATUS'],
+                            "ENTRADA": paciente['ENTRADA'],
+                            "ALTA": paciente['ALTA'] if not pd.isna(paciente['ALTA']) else ''
+                        })
+
                 if len(entradas) > 0:
                     atts["entradas"] = entradas
                 if len(saidas) > 0:
