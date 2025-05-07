@@ -13,6 +13,8 @@ origins = [
     "https://localhost:3000",
     "http://192.168.100.250:3000",
     "https://192.168.100.250:3000",
+    "https://dashboards.dstorres.com.br",
+    "http://dashboards.dstorres.com.br",
 ]
 
 
@@ -143,6 +145,20 @@ CORS(app, resources={
             "Content-Disposition",
         ],
         "supports_credentials": True
+    },
+    r"/register": {
+        "origins": origins,
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": [
+            "Content-Type", 
+            "Authorization",
+            "X-Requested-With",
+            "Accept",
+        ],
+        "expose_headers": [
+            "Content-Disposition",
+        ],
+        "supports_credentials": True
     }
 })
 
@@ -236,5 +252,4 @@ def download_xlsx():
 # Inicialização do servidor
 if __name__ == "__main__":
     locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
-    context = ('ganep_lar/services/cert/fullchain.pem', 'ganep_lar/services/cert/privkey.pem')
     app.run(host='0.0.0.0', port=5000)

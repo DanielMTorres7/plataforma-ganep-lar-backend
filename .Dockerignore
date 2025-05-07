@@ -1,0 +1,49 @@
+# Ignore everything by default
+*
+
+# Allow specific files and directories
+!.dockerignore
+!pyproject.toml
+!app.py
+!config.py
+!routes.py
+!ganep_lar/
+!requirements.txt  # If using requirements.txt instead of pyproject.toml
+
+# Ignore sensitive files
+*.env
+.env*
+.env.local
+secrets.json
+firebase-creds.json  # Adjust to your credential filenames
+
+# Ignore Python virtual environments
+.venv/
+venv/
+env/
+
+# Ignore Python artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Ignore Git-related files
+.git/
+.gitignore
+
+# Ignore IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Ignore build/distribution files
+dist/
+build/
+*.log
+*.tmp
